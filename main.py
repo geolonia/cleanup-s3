@@ -128,7 +128,7 @@ def main(profile, region, include_prefix, exclude_regex, buckets_file, max_worke
 
     if buckets_file:
         with open(buckets_file) as f:
-            candidates = [l.strip() for l in f if l.strip()]
+            candidates = [l.strip() for l in f if l.strip()]  # noqa: E741
     else:
         s3 = session.client("s3")
         candidates = list_bucket_names(s3)
@@ -147,18 +147,16 @@ def main(profile, region, include_prefix, exclude_regex, buckets_file, max_worke
         sys.exit(0)
 
     results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as ex, click.progressbar(targets, label="Deleting buckets") as pbar:
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futs = {ex.submit(worker, session, b, batch_size, delete_bucket): b for b in targets}
         for fut in as_completed(futs):
             b = futs[fut]
-            pbar.set_description(f"Deleting {b}")
             try:
                 res = fut.result()
                 results.append(res)
                 click.echo(f"[{b}] deleted={res['deleted']} final={res['final']}")
             except Exception as e:
                 click.echo(f"[{b}] ERROR: {e}", err=True)
-            pbar.update(1)
 
     ok = [r for r in results if r.get("final") in ("deleted", "gone")]
     ng = [r for r in results if r.get("final") not in ("deleted", "gone")]
